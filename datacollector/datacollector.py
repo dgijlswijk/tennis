@@ -19,22 +19,14 @@ class TennisDataCollector:
     """
     def __init__(self):
         self.base_url = "https://www.sofascore.com/api/v1"
-        self.default_headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br, zstd',
-            'Accept-Language': 'nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7,lb;q=0.6',
-            'Cache-Control': 'max-age=0',
-            'Referer': 'https://www.sofascore.com/',  # helpful in some cases
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1',
-            'Sec-Ch-Ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-            'Sec-Ch-Ua-Mobile': '?0',
-            'Sec-Ch-Ua-Platform': '"Windows"',
-        }
+
+        options = Options()
+        options.add_argument('--headless')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        self.driver = webdriver.Chrome(options=options)
+
     
     def _call_using_selenium(self, endpoint: str) -> Optional[Dict[str, Any]]:
         """
@@ -43,39 +35,32 @@ class TennisDataCollector:
         Optimized for resource management and robustness.
         """
         url = self.base_url + endpoint
-        options = Options()
-        options.add_argument('--headless')
-        options.add_argument('--disable-gpu')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        driver = None
-        try:
-            driver = webdriver.Chrome(options=options)
-            driver.get(url)
-            # Wait for page to load if needed (can be improved with explicit waits)
-            # Wait until the <body> tag is present, up to 10 seconds
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
-            soup = BeautifulSoup(driver.page_source, 'html.parser')
-            body = soup.body
-            if body:
-                # Extract text from <pre> if present, else fallback to body text
-                pre = body.find('pre')
-                if pre:
-                    body_content = pre.get_text()
-                else:
-                    body_content = body.get_text()
+        
+        self.driver.get(url)
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
+        soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+        body = soup.body
+        if body:
+            # Extract text from <pre> if present, else fallback to body text
+            pre = body.find('pre')
+            if pre:
+                body_content = pre.get_text()
             else:
-                body_content = ''
-            try:
-                return json.loads(body_content)
-            except json.JSONDecodeError as e:
-                logging.error(f"Failed to parse JSON: {e}")
-                return None
-        finally:
-            if driver:
-                driver.quit()
+                body_content = body.get_text()
+        else:
+            body_content = ''
+        try:
+            return json.loads(body_content)
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to parse JSON: {e}")
+            return None
+
+    def close(self):
+        if self.driver:
+            self.driver.quit()
+            self.driver = None
 
     def _validate_response(self, data: Any, required_keys: List[str], context: str = "") -> None:
         """
