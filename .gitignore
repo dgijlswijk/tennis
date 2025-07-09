@@ -128,3 +128,5 @@ Desktop.ini
 *.tmp
 
 venv/
+data/
+*/data/
