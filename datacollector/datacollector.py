@@ -55,12 +55,7 @@ class TennisDataCollector:
             return json.loads(body_content)
         except json.JSONDecodeError as e:
             logging.error(f"Failed to parse JSON: {e}")
-            return None
 
-    def close(self):
-        if self.driver:
-            self.driver.quit()
-            self.driver = None
 
     def _validate_response(self, data: Any, required_keys: List[str], context: str = "") -> None:
         """
