@@ -4,6 +4,12 @@ from typing import Optional, Dict, Any, List
 import json
 import os
 import time
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from bs4 import BeautifulSoup
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 logging.basicConfig(level=logging.INFO)
 
@@ -14,33 +20,62 @@ class TennisDataCollector:
     def __init__(self):
         self.base_url = "https://www.sofascore.com/api/v1"
         self.default_headers = {
-            'user-agent': (
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                'Chrome/121.0.0.0 Safari/537.36'
-            )
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Accept-Language': 'nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7,lb;q=0.6',
+            'Cache-Control': 'max-age=0',
+            'Referer': 'https://www.sofascore.com/',  # helpful in some cases
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Sec-Ch-Ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
         }
-        self.session = requests.Session()
-        self.session.headers.update(self.default_headers)
-
-    def _call_api(self,endpoint: str = "",headers: Optional[Dict[str, str]] = None,method: str = "GET",data: Any = None,json: Any = None
-    ) -> Any:
+    
+    def _call_using_selenium(self, endpoint: str) -> Optional[Dict[str, Any]]:
         """
-        Makes an HTTP request to the SofaScore API.
+        Uses Selenium to fetch the page source from a given URL.
+        This is useful for pages that require JavaScript to render content.
+        Optimized for resource management and robustness.
         """
         url = self.base_url + endpoint
-        req_headers = self.default_headers.copy()
-        if headers:
-            req_headers.update(headers)
-        response = self.session.request(
-            method=method,
-            url=url,
-            headers=req_headers,
-            data=data,
-            json=json
-        )
-        response.raise_for_status()
-        return response.json()
+        options = Options()
+        options.add_argument('--headless')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        driver = None
+        try:
+            driver = webdriver.Chrome(options=options)
+            driver.get(url)
+            # Wait for page to load if needed (can be improved with explicit waits)
+            # Wait until the <body> tag is present, up to 10 seconds
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
+            body = soup.body
+            if body:
+                # Extract text from <pre> if present, else fallback to body text
+                pre = body.find('pre')
+                if pre:
+                    body_content = pre.get_text()
+                else:
+                    body_content = body.get_text()
+            else:
+                body_content = ''
+            try:
+                return json.loads(body_content)
+            except json.JSONDecodeError as e:
+                logging.error(f"Failed to parse JSON: {e}")
+                return None
+        finally:
+            if driver:
+                driver.quit()
 
     def _validate_response(self, data: Any, required_keys: List[str], context: str = "") -> None:
         """
@@ -58,7 +93,7 @@ class TennisDataCollector:
         Returns a list of ATP tournaments with selected fields.
         Optionally saves the data if save_dir is provided.
         """
-        data = self._call_api(
+        data = self._call_using_selenium(
             endpoint="/config/default-unique-tournaments/NL/tennis"
         )
         self._validate_response(data, ["uniqueTournaments"], context="get_tournaments")
@@ -79,7 +114,7 @@ class TennisDataCollector:
         Optionally saves the data if save_dir is provided.
         """
         endpoint = f"/unique-tournament/{tournament_id}/seasons"
-        data = self._call_api(endpoint=endpoint)
+        data = self._call_using_selenium(endpoint=endpoint)
         self._validate_response(data, ["seasons"], context="get_seasons")
         seasons = data.get("seasons", [])
         if save_dir:
@@ -92,7 +127,7 @@ class TennisDataCollector:
         Optionally saves the data if save_dir is provided.
         """
         endpoint = f"/unique-tournament/{tournament_id}/season/{season_id}/cuptrees"
-        data = self._call_api(endpoint=endpoint)
+        data = self._call_using_selenium(endpoint=endpoint)
         self._validate_response(data, ["cupTrees"], context="get_cuptrees")
         cuptrees = data.get("cupTrees", {})
         if save_dir:
