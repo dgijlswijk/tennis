@@ -28,7 +28,7 @@ class TennisDataCollector:
         self.driver = webdriver.Chrome(options=options)
 
     
-    def _call_using_selenium(self, endpoint: str) -> Optional[Dict[str, Any]]:
+    def _call_using_selenium(self, endpoint: str) -> Dict[str, Any]:
         """
         Uses Selenium to fetch the page source from a given URL.
         This is useful for pages that require JavaScript to render content.
@@ -55,6 +55,7 @@ class TennisDataCollector:
             return json.loads(body_content)
         except json.JSONDecodeError as e:
             logging.error(f"Failed to parse JSON: {e}")
+            return {}
 
 
     def _validate_response(self, data: Any, required_keys: List[str], context: str = "") -> None:
@@ -170,7 +171,15 @@ class TennisDataCollector:
                 logging.warning(f"Failed to get seasons for tournament {tid}: {e}")
 
         return all_data
+    
+    def close(self):
+        """
+        Closes the Selenium WebDriver.
+        """
+        if self.driver:
+            self.driver.quit()
 
 if __name__ == "__main__":
     collector = TennisDataCollector()
     data = collector.get_all_data(max_tournaments=1)
+    collector.close()
