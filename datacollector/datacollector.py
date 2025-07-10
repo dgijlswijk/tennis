@@ -1,4 +1,3 @@
-import requests
 import logging
 from typing import Optional, Dict, Any, List
 import json
