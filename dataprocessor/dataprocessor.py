@@ -39,6 +39,9 @@ class TennisDataProcessor:
                     participants = block.get('participants', {})
                     for participant in participants:
                         team = participant.get('team', {})
+                        team['winner'] = participant.get('winner', None)
+                        team['order'] = participant.get('order', None)
+                        team['teamSeed'] = participant.get('teamSeed', None)
                         participants_list.append(team)
         
         return pd.DataFrame(participants_list)[['name', 'slug', 'shortName', 'gender', 'nameCode', 'ranking', 'disabled', 'national', 'id']].drop_duplicates()
@@ -95,8 +98,8 @@ class TennisDataProcessor:
                 for block in blocks:
                     participants = block.get('participants', [])
                     block_copy = block.copy()
-                    block_copy['home_id'] = participants[0].get('id')
-                    block_copy['away_id'] = participants[1].get('id')
+                    block_copy['home_id'] = participants[0]['team'].get('id')
+                    block_copy['away_id'] = participants[1]['team'].get('id')
                     block_copy['round_description'] = self.map_round_description(round_description)
                     games_list.append(block_copy)
 
