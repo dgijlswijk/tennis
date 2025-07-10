@@ -19,12 +19,15 @@ class TennisDataCollector:
     def __init__(self):
         self.base_url = "https://www.sofascore.com/api/v1"
 
-        options = Options()
-        options.add_argument('--headless')
-        options.add_argument('--disable-gpu')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        self.driver = webdriver.Chrome(options=options)
+        try:
+            options = Options()
+            options.add_argument('--headless')
+            options.add_argument('--disable-gpu')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            self.driver = webdriver.Chrome(options=options)
+        except Exception as e:
+            logging.error(f"Failed to initialize Selenium WebDriver: {e}")
 
     
     def _call_using_selenium(self, endpoint: str) -> Dict[str, Any]:
@@ -177,6 +180,12 @@ class TennisDataCollector:
         """
         if self.driver:
             self.driver.quit()
+
+    def __exit__(self):
+        """
+        Ensures the WebDriver is closed when exiting the context.
+        """
+        self.close()
 
 if __name__ == "__main__":
     collector = TennisDataCollector()
