@@ -21,7 +21,7 @@ class TennisTrainset:
             self.participants = pd.read_csv("dataprocessor/data/participants.csv")
             self.games = pd.read_csv("dataprocessor/data/games.csv")
         except FileNotFoundError as e:
-            print ("Participants or games data file not found. Please ensure the files exist in the specified path.", e)
+            logging.error("Participants or games data file not found. Please ensure the files exist in the specified path.", e)
 
     def participant_features(self):
         part_df = self.participants.copy()
@@ -66,7 +66,7 @@ class TennisTrainset:
         df_train_sym = pd.concat([df, swapped], ignore_index=True)
         df_train_sym.reset_index(drop=True, inplace=True)
 
-        print(f"Original matches: {len(df)}, Symmetrized matches: {len(df_train_sym)}")
+        logging.info(f"Original matches: {len(df)}, Symmetrized matches: {len(df_train_sym)}")
         return df_train_sym
 
     def create_trainset(self):
@@ -98,7 +98,7 @@ class TennisTrainset:
 
         sym_df.to_csv("trainset/data/features.csv", index=False)
         
-        logging.info("Features saved to trainset/data/combined_features.csv")
+        logging.info("Features saved to trainset/data/features.csv")
 
         return sym_df
 
