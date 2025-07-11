@@ -38,6 +38,37 @@ class TennisTrainset:
         part_df['birthdate'] = random_birthdates
         return part_df
 
+    def symmetrize_games(self, df):
+        # Symmetrize matches: add a row for each match with home/away swapped and result reversed
+        def reverse_result(result):
+            # Handles results like '3:1', '2:3', etc.
+            if isinstance(result, str) and ':' in result:
+                parts = result.split(':')
+                return f"{parts[1]}:{parts[0]}"
+            return result
+
+        df_train_sym = df.copy()
+        swapped = df.copy()
+        # Swap all columns containing 'home' with their corresponding 'away' columns and vice versa
+        for col in df.columns:
+            if 'home' in col:
+                away_col = col.replace('home', 'away')
+                if away_col in df.columns:
+                    swapped[col], swapped[away_col] = df[away_col], df[col]
+            elif 'away' in col:
+                home_col = col.replace('away', 'home')
+                if home_col in df.columns:
+                    swapped[col], swapped[home_col] = df[home_col], df[col]
+
+        swapped['result'] = df['result'].apply(reverse_result)
+
+        # Concatenate original and swapped
+        df_train_sym = pd.concat([df, swapped], ignore_index=True)
+        df_train_sym.reset_index(drop=True, inplace=True)
+
+        print(f"Original matches: {len(df)}, Symmetrized matches: {len(df_train_sym)}")
+        return df_train_sym
+
     def create_trainset(self):
         """
         Combine features from participants and games into a single DataFrame.
@@ -63,11 +94,13 @@ class TennisTrainset:
             how='inner'
         )
 
-        combined_df.to_csv("trainset/data/combined_features.csv", index=False)
-        
-        logging.info("Combined features saved to trainset/data/combined_features.csv")
+        sym_df = self.symmetrize_games(combined_df)
 
-        return combined_df
+        sym_df.to_csv("trainset/data/features.csv", index=False)
+        
+        logging.info("Features saved to trainset/data/combined_features.csv")
+
+        return sym_df
 
 if __name__ == "__main__":
     tts = TennisTrainset()
