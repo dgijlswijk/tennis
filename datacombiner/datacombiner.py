@@ -2,14 +2,14 @@ import pandas as pd
 import numpy as np
 import logging
 
-class TennisTrainset:
+class TennisDataCombiner:
     """
     A class to create and manage a dataset for training a machine learning model.
     """
 
     def __init__(self, ):
         """
-        Initialize the Trainset with data and labels.
+        Initialize the TennisDataCombiner with data and labels.
 
         Args:
             data (list or np.ndarray): The input features for training.
@@ -69,9 +69,9 @@ class TennisTrainset:
         logging.info(f"Original matches: {len(df)}, Symmetrized matches: {len(df_train_sym)}")
         return df_train_sym
 
-    def create_trainset(self):
+    def combine_data(self):
         """
-        Combine features from participants and games into a single DataFrame.
+        Combine data from participants and games into a single DataFrame.
         """
         game_df = self.games.copy()
         part_df = self.participant_features()[['id', 'name', 'birthdate']]
@@ -96,12 +96,12 @@ class TennisTrainset:
 
         sym_df = self.symmetrize_games(combined_df)
 
-        sym_df.to_csv("trainset/data/features.csv", index=False)
+        sym_df.to_csv("datacombiner/data/combined.csv", index=False)
         
-        logging.info("Features saved to trainset/data/features.csv")
+        logging.info("Features saved to datacombiner/data/combined.csv")
 
         return sym_df
 
 if __name__ == "__main__":
-    tts = TennisTrainset()
-    tts.create_trainset()
+    tts = TennisDataCombiner()
+    tts.combine_data()
